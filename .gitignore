@@ -1,0 +1,17 @@
+*~
+*.o
+*.dat
+*.bin
+*.BIN
+*.lst
+*.iso
+*.cue
+*.log
+*.img
+*.ppm
+*.exe
+map.sh
+*_map.sh
+font.lut
+convert_tmp
+converted_images
