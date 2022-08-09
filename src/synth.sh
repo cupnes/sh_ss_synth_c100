@@ -3186,6 +3186,45 @@ f_synth_proc_others() {
 	sh2_dec_ptr_and_copy_to_ptr_from_reg_long r15 r0
 	sh2_dec_ptr_and_copy_to_ptr_from_reg_long r15 r2
 
+	# ステータス・バイト == 0xc0?
+	sh2_set_reg r0 c0
+	sh2_extend_unsigned_to_reg_from_reg_byte r0 r0
+	sh2_compare_reg_eq_reg r1 r0
+	## ステータス・バイト != 0xc0ならT == 0
+
+	# ステータス・バイト != 0xc0なら
+	# プログラム・チェンジ固有処理を飛ばす
+	(
+		# ステータス・バイト == 0xc0 の場合
+
+		# 変更が発生するレジスタを退避
+		## 個別
+		sh2_dec_ptr_and_copy_to_ptr_from_reg_long r15 r1
+		sh2_copy_to_reg_from_pr r0
+		sh2_dec_ptr_and_copy_to_ptr_from_reg_long r15 r0
+
+		# プログラム・チェンジ固有処理の関数を呼び出す
+		copy_to_reg_from_val_long r1 $a_synth_proc_progchg
+		sh2_abs_call_to_reg_after_next_inst r1
+		sh2_nop
+
+		# 退避したレジスタを復帰
+		## 個別
+		sh2_copy_to_reg_from_ptr_and_inc_ptr_long r0 r15
+		sh2_copy_to_pr_from_reg r0
+		sh2_copy_to_reg_from_ptr_and_inc_ptr_long r1 r15
+		## 共通
+		sh2_copy_to_reg_from_ptr_and_inc_ptr_long r2 r15
+		sh2_copy_to_reg_from_ptr_and_inc_ptr_long r0 r15
+
+		# return
+		sh2_return_after_next_inst
+		sh2_nop
+	) >src/f_synth_proc_others.progchg.o
+	local sz_progchg=$(stat -c '%s' src/f_synth_proc_others.progchg.o)
+	sh2_rel_jump_if_false $(two_digits_d $(((sz_progchg - 2) / 2)))
+	cat src/f_synth_proc_others.progchg.o
+
 	# ステータス・バイト == 0xfa || ステータス・バイト == 0xfc?
 	## フラグをゼロクリア
 	sh2_set_reg r2 00

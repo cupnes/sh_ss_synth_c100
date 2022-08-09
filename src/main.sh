@@ -314,6 +314,30 @@ main() {
 			sh2_rel_jump_if_false $(two_digits_d $(((sz_pbc - 2) / 2)))
 			cat src/main.pbc.o
 
+			# ノート・オフ固有処理は繰り返し使用するのでファイルへ書き出しておく
+			# in : r1 - ノート番号
+			(
+				# KEY_OFF
+				## 取得したノート番号を鳴らしているスロット番号を返す
+				sh2_abs_call_to_reg_after_next_inst r9
+				sh2_nop
+				## MIBUFに注目対象のMIDIメッセージがあれば取得し
+				## 専用のキュー(SYNTH_MIDIMSG_QUEUE)へエンキュー
+				sh2_abs_call_to_reg_after_next_inst r12
+				sh2_nop
+				## 取得したスロット番号のスロットをKEY_OFFする
+				sh2_abs_call_to_reg_after_next_inst r10
+				sh2_nop
+
+				# # WORKAROUND2: 常に全てのスロットをKEY_OFFする
+				# # 全スロットをKEY_OFFする
+				# local slot_num_dec
+				# for slot_num_dec in $(seq 0 31); do
+				# 	sh2_abs_call_to_reg_after_next_inst r10
+				# 	sh2_set_reg r1 $(to16_2 $slot_num_dec)
+				# done
+			) >src/main.noteoffproc.o
+
 			# ステータス・バイト == 0x90?
 			sh2_set_reg r0 90
 			sh2_extend_unsigned_to_reg_from_reg_byte r0 r0
@@ -378,26 +402,7 @@ main() {
 				) >src/main.noteon.o
 				(
 					# ノート・オフの場合
-
-					# KEY_OFF
-					## 取得したノート番号を鳴らしているスロット番号を返す
-					sh2_abs_call_to_reg_after_next_inst r9
-					sh2_nop
-					## MIBUFに注目対象のMIDIメッセージがあれば取得し
-					## 専用のキュー(SYNTH_MIDIMSG_QUEUE)へエンキュー
-					sh2_abs_call_to_reg_after_next_inst r12
-					sh2_nop
-					## 取得したスロット番号のスロットをKEY_OFFする
-					sh2_abs_call_to_reg_after_next_inst r10
-					sh2_nop
-
-					# # WORKAROUND2: 常に全てのスロットをKEY_OFFする
-					# # 全スロットをKEY_OFFする
-					# local slot_num_dec
-					# for slot_num_dec in $(seq 0 31); do
-					# 	sh2_abs_call_to_reg_after_next_inst r10
-					# 	sh2_set_reg r1 $(to16_2 $slot_num_dec)
-					# done
+					cat src/main.noteoffproc.o
 
 					# ノート・オンの場合の処理を飛ばす
 					local sz_noteon=$(stat -c '%s' src/main.noteon.o)
@@ -412,6 +417,42 @@ main() {
 			local sz_noteonoff=$(stat -c '%s' src/main.noteonoff.o)
 			sh2_rel_jump_if_false $(two_digits_d $(((sz_noteonoff - 2) / 2)))
 			cat src/main.noteonoff.o
+
+			# ステータス・バイト == 0x80?
+			sh2_set_reg r0 80
+			sh2_extend_unsigned_to_reg_from_reg_byte r0 r0
+			sh2_compare_reg_eq_reg r1 r0
+			## ステータス・バイト != 0x80ならT == 0
+
+			# ステータス・バイト != 0x80なら
+			# ノート・オフ固有処理を飛ばす
+			(
+				# ステータス・バイト == 0x80 の場合
+
+				# データ・バイトのデキュー処理
+				# ノート番号(1バイト目)だけ使う
+				## デキュー
+				sh2_abs_call_to_reg_after_next_inst r6
+				sh2_nop
+				## 一旦r0へコピー
+				sh2_copy_to_reg_from_reg r0 r1
+				## デキュー
+				sh2_abs_call_to_reg_after_next_inst r6
+				sh2_nop
+				## r1へノート番号を設定
+				sh2_copy_to_reg_from_reg r1 r0
+
+				# MIBUFに注目対象のMIDIメッセージがあれば取得し
+				# 専用のキュー(SYNTH_MIDIMSG_QUEUE)へエンキュー
+				sh2_abs_call_to_reg_after_next_inst r12
+				sh2_nop
+
+				# ノート・オフ固有処理
+				cat src/main.noteoffproc.o
+			) >src/main.noteoffonly.o
+			local sz_noteoffonly=$(stat -c '%s' src/main.noteoffonly.o)
+			sh2_rel_jump_if_false $(two_digits_d $(((sz_noteoffonly - 2) / 2)))
+			cat src/main.noteoffonly.o
 
 			# ステータス・バイト == 0xb0?
 			sh2_set_reg r0 b0
@@ -432,26 +473,6 @@ main() {
 			local sz_assign=$(stat -c '%s' src/main.assign.o)
 			sh2_rel_jump_if_false $(two_digits_d $(((sz_assign - 2) / 2)))
 			cat src/main.assign.o
-
-			# ステータス・バイト == 0xc0?
-			sh2_set_reg r0 c0
-			sh2_extend_unsigned_to_reg_from_reg_byte r0 r0
-			sh2_compare_reg_eq_reg r1 r0
-			## ステータス・バイト != 0xc0ならT == 0
-
-			# ステータス・バイト != 0xc0なら
-			# プログラム・チェンジ固有処理を飛ばす
-			(
-				# ステータス・バイト == 0xc0 の場合
-
-				# プログラム・チェンジ固有処理の関数を呼び出す
-				copy_to_reg_from_val_long r1 $a_synth_proc_progchg
-				sh2_abs_call_to_reg_after_next_inst r1
-				sh2_nop
-			) >src/main.progchg.o
-			local sz_progchg=$(stat -c '%s' src/main.progchg.o)
-			sh2_rel_jump_if_false $(two_digits_d $(((sz_progchg - 2) / 2)))
-			cat src/main.progchg.o
 
 			# その他のステータス・バイト固有処理
 			copy_to_reg_from_val_long r2 $a_synth_proc_others
