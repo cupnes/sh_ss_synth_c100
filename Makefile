@@ -1,4 +1,4 @@
-NAME=ss_synth_retrogstudy_06
+NAME=ss_synth_c100
 TARGETS=$(NAME).iso $(NAME).cue
 TOOLS_PATH=tools
 EMU_YABAUSE=yabause -a -nb -i
