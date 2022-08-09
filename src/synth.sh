@@ -404,16 +404,21 @@ f_synth_check_and_enq_midimsg() {
 	# MIBUFからステータス・バイト取得
 	sh2_copy_to_reg_from_ptr_byte r0 r13
 
-	# ステータス・バイト == 0x90 || ステータス・バイト == 0xb0 || ステータス・バイト == 0xe0 ?
+	# ステータス・バイト == 0x80 || ステータス・バイト == 0x90 || ステータス・バイト == 0xb0 || ステータス・バイト == 0xe0 ?
 	## フラグをゼロクリア
 	sh2_set_reg r1 00
-	## ステータス・バイト == 0x90ならフラグをセット
-	sh2_compare_r0_eq_val 90
-	### ステータス・バイト != 0x90の時、T == 0
+	## ステータス・バイト == 0x80ならフラグをセット
+	sh2_compare_r0_eq_val 80
+	### ステータス・バイト != 0x80の時、T == 0
 	(
 		sh2_set_reg r1 01
 	) >src/f_synth_check_and_enq_midimsg.setr101.o
 	local sz_setr101=$(stat -c '%s' src/f_synth_check_and_enq_midimsg.setr101.o)
+	### T == 0なら処理を飛ばす
+	sh2_rel_jump_if_false $(two_digits_d $(((sz_setr101 - 2) / 2)))
+	cat src/f_synth_check_and_enq_midimsg.setr101.o
+	## ステータス・バイト == 0x90ならフラグをセット
+	sh2_compare_r0_eq_val 90
 	### T == 0なら処理を飛ばす
 	sh2_rel_jump_if_false $(two_digits_d $(((sz_setr101 - 2) / 2)))
 	cat src/f_synth_check_and_enq_midimsg.setr101.o
@@ -432,10 +437,10 @@ f_synth_check_and_enq_midimsg() {
 	sh2_compare_reg_eq_reg r1 r2
 	### フラグがセットされていない時、T == 0
 
-	# ステータス・バイト == 0x90 || ステータス・バイト == 0xb0 || ステータス・バイト == 0xe0 なら
+	# ステータス・バイト == 0x80 || ステータス・バイト == 0x90 || ステータス・バイト == 0xb0 || ステータス・バイト == 0xe0 なら
 	# ノート・オン/オフ,アサイナブルホイール,ピッチ・ベンド・チェンジのMIDIメッセージをエンキュー
 	(
-		# ステータス・バイト == 0x90 || ステータス・バイト == 0xb0 || ステータス・バイト == 0xe0 の場合
+		# ステータス・バイト == 0x80 || ステータス・バイト == 0x90 || ステータス・バイト == 0xb0 || ステータス・バイト == 0xe0 の場合
 
 		# ステータス・バイトをr1へコピーしておく
 		sh2_copy_to_reg_from_reg r1 r0
